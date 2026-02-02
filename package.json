@@ -1,0 +1,25 @@
+{
+  "name": "scotech-inventory-pwa",
+  "version": "1.0.0",
+  "description": "Modern Sales & Inventory PWA for Scotech",
+  "main": "index.js",
+  "scripts": {
+    "dev": "npx http-server public -p 3000",
+    "build": "echo 'Static site - no build needed'",
+    "deploy": "vercel --prod"
+  },
+  "keywords": [
+    "pwa",
+    "inventory",
+    "sales",
+    "scotech"
+  ],
+  "author": "Scotech",
+  "license": "MIT",
+  "dependencies": {
+    "appwrite": "^14.0.1"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}
