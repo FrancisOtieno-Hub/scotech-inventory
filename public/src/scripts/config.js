@@ -3,7 +3,7 @@
 
 const appwriteConfig = {
     endpoint: 'https://cloud.appwrite.io/v1', // Your Appwrite Endpoint
-    projectId: 'YOUR_PROJECT_ID', // Your Appwrite Project ID
+    projectId: '6980a4c600001cf887ce', // Your Appwrite Project ID
     databaseId: 'scotech-inventory', // Database ID
     collections: {
         products: 'products',
