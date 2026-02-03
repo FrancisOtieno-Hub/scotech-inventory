@@ -31,6 +31,14 @@ Unlike typical business apps with purple gradients and generic layouts, Scotech 
 - GitHub account
 - Vercel account
 
+### ⚠️ Important: Fix CORS Error First!
+
+If you get a **403 CORS error**, you need to add your domain to Appwrite:
+
+1. Go to Appwrite Console → Settings → Platforms
+2. Add Web Platform with hostname: `yourdomain.vercel.app` (or `localhost`)
+3. **See `CORS_FIX.md` for detailed step-by-step guide**
+
 ### 1. Clone the Repository
 
 ```bash
