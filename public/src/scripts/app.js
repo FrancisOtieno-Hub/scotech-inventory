@@ -94,6 +94,18 @@ class ScotechApp {
         if (newSaleBtn) {
             newSaleBtn.addEventListener('click', () => this.showNewSaleModal());
         }
+
+        // Add product button
+        const addProductBtn = document.getElementById('addProductBtn');
+        if (addProductBtn) {
+            addProductBtn.addEventListener('click', () => this.showAddProductModal());
+        }
+
+        // Product search
+        const productSearch = document.getElementById('productSearch');
+        if (productSearch) {
+            productSearch.addEventListener('input', (e) => this.searchProducts(e.target.value));
+        }
     }
 
     navigateTo(page) {
@@ -158,27 +170,23 @@ class ScotechApp {
             const statsResult = await appwriteService.getDashboardStats();
             
             if (statsResult.success) {
-                const stats = statsResult.data;
-                // Stats will be animated on page load
-                // Store values for animation
-                this.statsData = stats;
+                this.statsData = statsResult.data;
             } else {
-                // Use demo data if Appwrite not configured
+                console.warn('Using empty stats - configure Appwrite to see real data');
                 this.statsData = {
-                    totalRevenue: 45890,
-                    totalItems: 1234,
-                    totalSales: 892,
-                    lowStockAlerts: 23
+                    totalRevenue: 0,
+                    totalItems: 0,
+                    totalSales: 0,
+                    lowStockAlerts: 0
                 };
             }
         } catch (error) {
             console.error('Error loading dashboard data:', error);
-            // Use demo data
             this.statsData = {
-                totalRevenue: 45890,
-                totalItems: 1234,
-                totalSales: 892,
-                lowStockAlerts: 23
+                totalRevenue: 0,
+                totalItems: 0,
+                totalSales: 0,
+                lowStockAlerts: 0
             };
         }
     }
@@ -200,9 +208,9 @@ class ScotechApp {
                 const easeOut = 1 - Math.pow(1 - progress, 3);
                 const currentValue = Math.floor(targetValue * easeOut);
                 
-                // Format based on content
-                if (element.textContent.includes('$')) {
-                    element.textContent = `$${currentValue.toLocaleString()}`;
+                // Format with KES currency
+                if (element.parentElement.parentElement.querySelector('.stat-icon.revenue')) {
+                    element.textContent = `KES ${currentValue.toLocaleString()}`;
                 } else {
                     element.textContent = currentValue.toLocaleString();
                 }
@@ -226,15 +234,15 @@ class ScotechApp {
         try {
             const result = await appwriteService.getInventory(filter);
             
-            if (result.success && result.data.length > 0) {
+            if (result.success) {
                 this.renderInventory(result.data);
             } else {
-                // Use demo data
-                this.renderInventory(this.getDemoInventory());
+                console.warn('Configure Appwrite to see inventory data');
+                this.renderInventory([]);
             }
         } catch (error) {
             console.error('Error loading inventory:', error);
-            this.renderInventory(this.getDemoInventory());
+            this.renderInventory([]);
         }
     }
 
@@ -249,7 +257,14 @@ class ScotechApp {
                         <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
                     </svg>
                     <h3>No items found</h3>
-                    <p>Try adjusting your filters or add new products</p>
+                    <p>Add products to start tracking inventory</p>
+                    <button class="btn-primary" onclick="scotechApp.showAddProductModal()" style="margin-top: 1rem;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        <span>Add Product</span>
+                    </button>
                 </div>
             `;
             return;
@@ -271,23 +286,12 @@ class ScotechApp {
                         <div class="stock-badge ${stockStatus}">${stockText}</div>
                     </div>
                     <div class="inventory-details">
-                        <div class="inventory-price">$${item.price.toFixed(2)}</div>
+                        <div class="inventory-price">KES ${item.price.toLocaleString()}</div>
                         <div class="inventory-quantity">${item.quantity} units</div>
                     </div>
                 </div>
             `;
         }).join('');
-    }
-
-    getDemoInventory() {
-        return [
-            { name: 'MacBook Pro 16"', sku: 'MBP-16-2024', price: 2499, quantity: 15 },
-            { name: 'iPhone 15 Pro Max', sku: 'IP-15PM-BLK', price: 1199, quantity: 5 },
-            { name: 'Samsung Galaxy S24', sku: 'SGS-24-GRY', price: 899, quantity: 32 },
-            { name: 'Dell XPS 13', sku: 'DXPS-13-SLV', price: 1299, quantity: 0 },
-            { name: 'iPad Pro 12.9"', sku: 'IPD-PRO-12', price: 1099, quantity: 18 },
-            { name: 'Sony WH-1000XM5', sku: 'SNY-XM5-BLK', price: 399, quantity: 45 }
-        ];
     }
 
     async loadSalesData() {
@@ -299,14 +303,15 @@ class ScotechApp {
         try {
             const result = await appwriteService.getSales(50, 0);
             
-            if (result.success && result.data.length > 0) {
+            if (result.success) {
                 this.renderSales(result.data);
             } else {
-                this.renderSales(this.getDemoSales());
+                console.warn('Configure Appwrite to see sales data');
+                this.renderSales([]);
             }
         } catch (error) {
             console.error('Error loading sales:', error);
-            this.renderSales(this.getDemoSales());
+            this.renderSales([]);
         }
     }
 
@@ -315,7 +320,20 @@ class ScotechApp {
         if (!salesTableBody) return;
 
         if (sales.length === 0) {
-            salesTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No sales found</td></tr>';
+            salesTableBody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align:center; padding: 3rem;">
+                        <div class="empty-state">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="1" x2="12" y2="23"></line>
+                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                            </svg>
+                            <h3>No sales recorded yet</h3>
+                            <p>Start by recording your first sale</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
             return;
         }
 
@@ -325,7 +343,7 @@ class ScotechApp {
                 <td>${new Date(sale.date || Date.now()).toLocaleDateString()}</td>
                 <td>${sale.productName || 'Product'}</td>
                 <td>${sale.quantity || 1}</td>
-                <td>$${(sale.amount || 0).toFixed(2)}</td>
+                <td>KES ${(sale.amount || 0).toLocaleString()}</td>
                 <td><span class="status-badge ${sale.status || 'completed'}">${sale.status || 'Completed'}</span></td>
                 <td>
                     <div class="table-actions">
@@ -348,16 +366,132 @@ class ScotechApp {
         `).join('');
     }
 
-    getDemoSales() {
-        return [
-            { date: new Date(), productName: 'MacBook Pro 16"', quantity: 1, amount: 2499, status: 'completed' },
-            { date: new Date(Date.now() - 86400000), productName: 'iPhone 15 Pro', quantity: 2, amount: 2398, status: 'completed' },
-            { date: new Date(Date.now() - 172800000), productName: 'iPad Pro', quantity: 1, amount: 1099, status: 'pending' }
-        ];
+    async loadProductsData() {
+        const productsTableBody = document.getElementById('productsTableBody');
+        if (!productsTableBody) return;
+
+        productsTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Loading...</td></tr>';
+
+        try {
+            const result = await appwriteService.getProducts(100, 0);
+            
+            if (result.success) {
+                this.renderProducts(result.data);
+            } else {
+                console.warn('Configure Appwrite to see products');
+                this.renderProducts([]);
+            }
+        } catch (error) {
+            console.error('Error loading products:', error);
+            this.renderProducts([]);
+        }
     }
 
-    async loadProductsData() {
-        console.log('Loading products data...');
+    renderProducts(products) {
+        const productsTableBody = document.getElementById('productsTableBody');
+        if (!productsTableBody) return;
+
+        if (products.length === 0) {
+            productsTableBody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align:center; padding: 3rem;">
+                        <div class="empty-state">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                                <line x1="3" y1="6" x2="21" y2="6"></line>
+                            </svg>
+                            <h3>No products yet</h3>
+                            <p>Add your first product to get started</p>
+                            <button class="btn-primary" onclick="scotechApp.showAddProductModal()" style="margin-top: 1rem;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                <span>Add Product</span>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        productsTableBody.innerHTML = products.map(product => {
+            // Get inventory quantity
+            const quantity = product.quantity || 0;
+            const stockStatus = quantity === 0 ? 'out-of-stock' : 
+                               quantity < 20 ? 'low-stock' : 'in-stock';
+            const stockText = quantity === 0 ? 'Out of Stock' : 
+                             quantity < 20 ? 'Low Stock' : 'In Stock';
+
+            return `
+                <tr>
+                    <td><strong>${product.name}</strong></td>
+                    <td><code style="background: var(--color-cream); padding: 0.25rem 0.5rem; border-radius: 4px; font-family: var(--font-mono); font-size: 0.75rem;">${product.sku || 'N/A'}</code></td>
+                    <td>${product.category || 'Uncategorized'}</td>
+                    <td><strong style="color: var(--color-terracotta); font-family: var(--font-mono);">KES ${product.price.toLocaleString()}</strong></td>
+                    <td>${quantity} units</td>
+                    <td><span class="stock-badge ${stockStatus}">${stockText}</span></td>
+                    <td>
+                        <div class="table-actions">
+                            <button class="action-icon-btn" title="Edit" onclick="scotechApp.editProduct('${product.$id}')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                            </button>
+                            <button class="action-icon-btn" title="Delete" onclick="scotechApp.deleteProduct('${product.$id}', '${product.name}')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    async searchProducts(searchTerm) {
+        if (!searchTerm.trim()) {
+            this.loadProductsData();
+            return;
+        }
+
+        try {
+            const result = await appwriteService.searchProducts(searchTerm);
+            if (result.success) {
+                this.renderProducts(result.data);
+            }
+        } catch (error) {
+            console.error('Search error:', error);
+        }
+    }
+
+    async editProduct(productId) {
+        // TODO: Implement edit functionality
+        console.log('Edit product:', productId);
+        this.showNotification('Edit functionality coming soon!', 'info');
+    }
+
+    async deleteProduct(productId, productName) {
+        if (!confirm(`Are you sure you want to delete "${productName}"?`)) {
+            return;
+        }
+
+        try {
+            const result = await appwriteService.deleteProduct(productId);
+            if (result.success) {
+                this.showNotification('Product deleted successfully!', 'success');
+                this.loadProductsData();
+            } else {
+                this.showNotification('Failed to delete product', 'error');
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            this.showNotification('Error deleting product', 'error');
+        }
     }
 
     async loadAnalyticsData() {
@@ -403,28 +537,47 @@ class ScotechApp {
         }
     }
 
-    showNewSaleModal() {
+    async showNewSaleModal() {
+        // Load products for dropdown
+        const productsResult = await appwriteService.getProducts(100, 0);
+        const products = productsResult.success ? productsResult.data : [];
+        
+        const productOptions = products.length > 0 
+            ? products.map(p => `<option value="${p.$id}" data-price="${p.price}" data-name="${p.name}">${p.name} - KES ${p.price.toLocaleString()}</option>`).join('')
+            : '<option value="">No products available - Add products first</option>';
+
         const modal = this.createModal('New Sale', `
             <form id="newSaleForm">
                 <div class="form-group">
                     <label class="form-label">Product</label>
-                    <select class="form-select" id="saleProduct" required>
+                    <select class="form-select" id="saleProduct" required onchange="scotechApp.updateSaleAmount()">
                         <option value="">Select product</option>
-                        <option value="1">MacBook Pro 16"</option>
-                        <option value="2">iPhone 15 Pro Max</option>
-                        <option value="3">Samsung Galaxy S24</option>
+                        ${productOptions}
                     </select>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Quantity</label>
-                    <input type="number" class="form-input" id="saleQuantity" min="1" value="1" required>
+                    <input type="number" class="form-input" id="saleQuantity" min="1" value="1" required onchange="scotechApp.updateSaleAmount()">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Amount</label>
-                    <input type="number" class="form-input" id="saleAmount" step="0.01" required>
+                    <label class="form-label">Amount (KES)</label>
+                    <input type="number" class="form-input" id="saleAmount" step="0.01" required readonly>
                 </div>
             </form>
         `, () => this.submitNewSale());
+    }
+
+    updateSaleAmount() {
+        const productSelect = document.getElementById('saleProduct');
+        const quantityInput = document.getElementById('saleQuantity');
+        const amountInput = document.getElementById('saleAmount');
+
+        if (productSelect && quantityInput && amountInput) {
+            const selectedOption = productSelect.options[productSelect.selectedIndex];
+            const price = parseFloat(selectedOption.getAttribute('data-price')) || 0;
+            const quantity = parseInt(quantityInput.value) || 0;
+            amountInput.value = (price * quantity).toFixed(2);
+        }
     }
 
     showAddProductModal() {
@@ -439,12 +592,20 @@ class ScotechApp {
                     <input type="text" class="form-input" id="productSKU" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Price</label>
+                    <label class="form-label">Category</label>
+                    <input type="text" class="form-input" id="productCategory" placeholder="e.g., Electronics, Furniture">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Price (KES)</label>
                     <input type="number" class="form-input" id="productPrice" step="0.01" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Quantity</label>
+                    <label class="form-label">Initial Quantity</label>
                     <input type="number" class="form-input" id="productQuantity" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description (Optional)</label>
+                    <textarea class="form-textarea" id="productDescription" rows="3"></textarea>
                 </div>
             </form>
         `, () => this.submitNewProduct());
@@ -499,37 +660,95 @@ class ScotechApp {
     }
 
     async submitNewSale() {
-        const product = document.getElementById('saleProduct').value;
+        const productSelect = document.getElementById('saleProduct');
+        const selectedOption = productSelect.options[productSelect.selectedIndex];
+        const productId = productSelect.value;
+        const productName = selectedOption.getAttribute('data-name');
         const quantity = parseInt(document.getElementById('saleQuantity').value);
         const amount = parseFloat(document.getElementById('saleAmount').value);
 
-        if (!product || !quantity || !amount) {
+        if (!productId || !quantity || !amount) {
             alert('Please fill all fields');
             return;
         }
 
-        // Submit to Appwrite (or use demo mode)
-        console.log('New sale:', { product, quantity, amount });
-        
-        this.closeModal();
-        this.showNotification('Sale recorded successfully!', 'success');
+        try {
+            const result = await appwriteService.createSale({
+                productId,
+                productName,
+                quantity,
+                amount
+            });
+
+            if (result.success) {
+                this.closeModal();
+                this.showNotification('Sale recorded successfully!', 'success');
+                // Reload sales and dashboard
+                this.loadSalesData();
+                this.loadDashboardData();
+                this.animateStats();
+            } else {
+                this.showNotification('Failed to record sale: ' + result.error, 'error');
+            }
+        } catch (error) {
+            console.error('Sale error:', error);
+            this.showNotification('Error recording sale', 'error');
+        }
     }
 
     async submitNewProduct() {
         const name = document.getElementById('productName').value;
         const sku = document.getElementById('productSKU').value;
+        const category = document.getElementById('productCategory').value;
         const price = parseFloat(document.getElementById('productPrice').value);
         const quantity = parseInt(document.getElementById('productQuantity').value);
+        const description = document.getElementById('productDescription').value;
 
         if (!name || !sku || !price || quantity < 0) {
-            alert('Please fill all fields');
+            alert('Please fill all required fields');
             return;
         }
 
-        console.log('New product:', { name, sku, price, quantity });
-        
-        this.closeModal();
-        this.showNotification('Product added successfully!', 'success');
+        try {
+            // Create product
+            const productResult = await appwriteService.createProduct({
+                name,
+                sku,
+                category: category || 'Uncategorized',
+                price,
+                description: description || ''
+            });
+
+            if (productResult.success) {
+                // Create inventory entry
+                const inventoryResult = await appwriteService.databases.createDocument(
+                    appwriteConfig.databaseId,
+                    appwriteConfig.collections.inventory,
+                    appwriteService.ID?.unique() || Date.now().toString(),
+                    {
+                        productId: productResult.data.$id,
+                        name,
+                        sku,
+                        quantity,
+                        price
+                    }
+                );
+
+                this.closeModal();
+                this.showNotification('Product added successfully!', 'success');
+                
+                // Reload relevant data
+                this.loadProductsData();
+                this.loadInventoryData();
+                this.loadDashboardData();
+                this.animateStats();
+            } else {
+                this.showNotification('Failed to add product: ' + productResult.error, 'error');
+            }
+        } catch (error) {
+            console.error('Product creation error:', error);
+            this.showNotification('Error adding product', 'error');
+        }
     }
 
     showNotification(message, type = 'info') {
