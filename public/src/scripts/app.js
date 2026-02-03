@@ -173,6 +173,8 @@ class ScotechApp {
                 this.statsData = statsResult.data;
                 // Update data-value attributes
                 this.updateStatsValues(statsResult.data);
+                // Update notification badge
+                this.updateNotificationBadge(statsResult.data.lowStockAlerts);
             } else {
                 console.warn('Using empty stats - configure Appwrite to see real data');
                 this.statsData = {
@@ -181,6 +183,7 @@ class ScotechApp {
                     totalSales: 0,
                     lowStockAlerts: 0
                 };
+                this.updateNotificationBadge(0);
             }
         } catch (error) {
             console.error('Error loading dashboard data:', error);
@@ -190,6 +193,19 @@ class ScotechApp {
                 totalSales: 0,
                 lowStockAlerts: 0
             };
+            this.updateNotificationBadge(0);
+        }
+    }
+
+    updateNotificationBadge(count) {
+        const badge = document.querySelector('.notifications .badge');
+        if (badge) {
+            if (count > 0) {
+                badge.textContent = count;
+                badge.style.display = 'block';
+            } else {
+                badge.style.display = 'none';
+            }
         }
     }
 
@@ -805,12 +821,105 @@ class ScotechApp {
         }, 3000);
     }
 
-    showNotifications() {
-        console.log('Show notifications');
+    async showNotifications() {
+        // Get low stock items for notifications
+        const lowStockResult = await appwriteService.getInventory('low');
+        const lowStockItems = lowStockResult.success ? lowStockResult.data : [];
+
+        const notificationsList = lowStockItems.length > 0 
+            ? lowStockItems.map(item => `
+                <div class="notification-item" style="padding: 1rem; border-bottom: 1px solid var(--color-cream);">
+                    <div style="display: flex; gap: 1rem; align-items: start;">
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(200, 74, 74, 0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-danger)" stroke-width="2" style="width: 20px; height: 20px;">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                <line x1="12" y1="9" x2="12" y2="13"></line>
+                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            </svg>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; margin-bottom: 0.25rem;">Low Stock Alert</div>
+                            <div style="font-size: 0.875rem; color: var(--color-slate);">
+                                ${item.name} • Only ${item.quantity} left
+                            </div>
+                            <div style="font-size: 0.75rem; color: var(--color-slate-light); margin-top: 0.25rem;">
+                                Just now
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('')
+            : '<div style="text-align: center; padding: 3rem; color: var(--color-slate);">No notifications</div>';
+
+        this.createModal('Notifications', `
+            <div style="max-height: 500px; overflow-y: auto;">
+                ${notificationsList}
+            </div>
+        `, null);
+
+        // Hide submit button
+        const submitBtn = document.getElementById('modalSubmit');
+        if (submitBtn) submitBtn.style.display = 'none';
+
+        // Update notification badge
+        const badge = document.querySelector('.notifications .badge');
+        if (badge && lowStockItems.length === 0) {
+            badge.style.display = 'none';
+        }
     }
 
     handleSearch() {
-        console.log('Search');
+        const searchModal = this.createModal('Search', `
+            <div class="form-group">
+                <input type="text" class="form-input" id="globalSearch" placeholder="Search products, sales, inventory..." autofocus>
+            </div>
+            <div id="searchResults" style="max-height: 400px; overflow-y: auto; margin-top: 1rem;">
+                <p style="text-align: center; color: var(--color-slate);">Start typing to search...</p>
+            </div>
+        `, null);
+
+        // Remove submit button for search modal
+        const submitBtn = document.getElementById('modalSubmit');
+        if (submitBtn) submitBtn.style.display = 'none';
+
+        const searchInput = document.getElementById('globalSearch');
+        const resultsDiv = document.getElementById('searchResults');
+
+        let searchTimeout;
+        searchInput.addEventListener('input', async (e) => {
+            clearTimeout(searchTimeout);
+            const query = e.target.value.trim();
+
+            if (query.length < 2) {
+                resultsDiv.innerHTML = '<p style="text-align: center; color: var(--color-slate);">Start typing to search...</p>';
+                return;
+            }
+
+            resultsDiv.innerHTML = '<div class="spinner" style="margin: 2rem auto;"></div>';
+
+            searchTimeout = setTimeout(async () => {
+                try {
+                    const results = await appwriteService.searchProducts(query);
+                    
+                    if (results.success && results.data.length > 0) {
+                        resultsDiv.innerHTML = results.data.map(product => `
+                            <div class="search-result-item" style="padding: 1rem; border-bottom: 1px solid var(--color-cream); cursor: pointer;" 
+                                 onclick="scotechApp.closeModal(); scotechApp.navigateTo('products');">
+                                <div style="font-weight: 600; margin-bottom: 0.25rem;">${product.name}</div>
+                                <div style="font-size: 0.875rem; color: var(--color-slate);">
+                                    SKU: ${product.sku} • KES ${product.price.toLocaleString()}
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        resultsDiv.innerHTML = '<p style="text-align: center; color: var(--color-slate);">No results found</p>';
+                    }
+                } catch (error) {
+                    console.error('Search error:', error);
+                    resultsDiv.innerHTML = '<p style="text-align: center; color: var(--color-danger);">Search failed</p>';
+                }
+            }, 300);
+        });
     }
 
     async handleLogout() {
