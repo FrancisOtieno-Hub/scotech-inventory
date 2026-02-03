@@ -7,6 +7,7 @@ A modern, beautiful, and functional Progressive Web App for sales and inventory 
 - 📊 **Dashboard** - Real-time stats and analytics
 - 📦 **Inventory Management** - Track stock levels, low stock alerts
 - 💰 **Sales Tracking** - Record and manage sales transactions
+- 🇰🇪 **Kenyan Currency** - Uses KES (Kenyan Shillings) throughout
 - 📱 **PWA Support** - Install on any device, works offline
 - 🎨 **Unique Design** - Warm earth tones with industrial-modern aesthetic
 - ⚡ **Fast & Responsive** - Smooth animations and mobile-optimized
