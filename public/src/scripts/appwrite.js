@@ -14,15 +14,26 @@ class AppwriteService {
     init() {
         if (this.initialized) return;
 
-        this.client
-            .setEndpoint(appwriteConfig.endpoint)
-            .setProject(appwriteConfig.projectId);
+        try {
+            this.client
+                .setEndpoint(appwriteConfig.endpoint)
+                .setProject(appwriteConfig.projectId);
 
-        this.databases = new Databases(this.client);
-        this.account = new Account(this.client);
-        this.initialized = true;
+            this.databases = new Databases(this.client);
+            this.account = new Account(this.client);
+            this.initialized = true;
 
-        console.log('✅ Appwrite initialized');
+            console.log('✅ Appwrite initialized');
+            console.log('📌 Project ID:', appwriteConfig.projectId);
+            
+            if (appwriteConfig.projectId === 'YOUR_PROJECT_ID') {
+                console.error('⚠️ IMPORTANT: Update your Project ID in public/src/scripts/config.js');
+                console.error('⚠️ Get it from: https://cloud.appwrite.io/console/project-YOUR_ID/settings');
+            }
+        } catch (error) {
+            console.error('❌ Appwrite initialization failed:', error);
+            console.error('📝 Check your config.js file');
+        }
     }
 
     // ========== AUTHENTICATION ==========
@@ -69,10 +80,27 @@ class AppwriteService {
                     Query.orderDesc('$createdAt')
                 ]
             );
-            return { success: true, data: response.documents, total: response.total };
+            return { success: true, data: response.documents || [], total: response.total || 0 };
         } catch (error) {
             console.error('Failed to get products:', error);
-            return { success: false, error: error.message };
+            this.handleCORSError(error);
+            return { success: false, error: error.message, data: [] };
+        }
+    }
+
+    handleCORSError(error) {
+        if (error.code === 403 || (error.message && error.message.includes('403'))) {
+            console.error('');
+            console.error('🔒 CORS/403 Error Detected!');
+            console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.error('📍 Fix this in Appwrite Console:');
+            console.error('   1. Go to: https://cloud.appwrite.io/console');
+            console.error('   2. Select your project');
+            console.error('   3. Settings → Platforms');
+            console.error('   4. Add Web Platform with your domain');
+            console.error('   5. Hostname: ' + window.location.hostname);
+            console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.error('');
         }
     }
 
@@ -163,10 +191,11 @@ class AppwriteService {
                     Query.orderDesc('$createdAt')
                 ]
             );
-            return { success: true, data: response.documents, total: response.total };
+            return { success: true, data: response.documents || [], total: response.total || 0 };
         } catch (error) {
             console.error('Failed to get sales:', error);
-            return { success: false, error: error.message };
+            this.handleCORSError(error);
+            return { success: false, error: error.message, data: [] };
         }
     }
 
@@ -214,10 +243,11 @@ class AppwriteService {
                 appwriteConfig.collections.inventory,
                 queries
             );
-            return { success: true, data: response.documents };
+            return { success: true, data: response.documents || [] };
         } catch (error) {
             console.error('Failed to get inventory:', error);
-            return { success: false, error: error.message };
+            this.handleCORSError(error);
+            return { success: false, error: error.message, data: [] };
         }
     }
 
@@ -268,8 +298,8 @@ class AppwriteService {
 
     async getDashboardStats() {
         try {
-            // Get sales for revenue calculation
-            const salesResponse = await this.getSales(1000, 0);
+            // Get sales for revenue calculation (with reduced limit to avoid CORS issues)
+            const salesResponse = await this.getSales(100, 0);
             const sales = salesResponse.data || [];
 
             // Calculate total revenue
@@ -295,7 +325,26 @@ class AppwriteService {
             };
         } catch (error) {
             console.error('Failed to get dashboard stats:', error);
-            return { success: false, error: error.message };
+            
+            // Check if it's a CORS/403 error
+            if (error.message && error.message.includes('403')) {
+                console.error('🔒 403 Error - Check Appwrite Platform Settings:');
+                console.error('   1. Go to your Appwrite Console');
+                console.error('   2. Settings > Platforms');
+                console.error('   3. Add your domain (e.g., scotech-inventory.vercel.app)');
+                console.error('   4. For localhost add: localhost, 127.0.0.1');
+            }
+            
+            return { 
+                success: false, 
+                error: error.message,
+                data: {
+                    totalRevenue: 0,
+                    totalItems: 0,
+                    totalSales: 0,
+                    lowStockAlerts: 0
+                }
+            };
         }
     }
 }
