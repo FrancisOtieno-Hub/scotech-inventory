@@ -171,6 +171,8 @@ class ScotechApp {
             
             if (statsResult.success) {
                 this.statsData = statsResult.data;
+                // Update data-value attributes
+                this.updateStatsValues(statsResult.data);
             } else {
                 console.warn('Using empty stats - configure Appwrite to see real data');
                 this.statsData = {
@@ -189,6 +191,30 @@ class ScotechApp {
                 lowStockAlerts: 0
             };
         }
+    }
+
+    updateStatsValues(stats) {
+        // Update data-value attributes for animation
+        const statCards = document.querySelectorAll('.stat-card');
+        statCards.forEach((card, index) => {
+            const valueEl = card.querySelector('.stat-value');
+            if (valueEl) {
+                switch(index) {
+                    case 0: // Revenue
+                        valueEl.setAttribute('data-value', stats.totalRevenue || 0);
+                        break;
+                    case 1: // Items
+                        valueEl.setAttribute('data-value', stats.totalItems || 0);
+                        break;
+                    case 2: // Sales
+                        valueEl.setAttribute('data-value', stats.totalSales || 0);
+                        break;
+                    case 3: // Alerts
+                        valueEl.setAttribute('data-value', stats.lowStockAlerts || 0);
+                        break;
+                }
+            }
+        });
     }
 
     animateStats() {
@@ -250,7 +276,8 @@ class ScotechApp {
         const inventoryGrid = document.getElementById('inventoryGrid');
         if (!inventoryGrid) return;
 
-        if (items.length === 0) {
+        // Handle undefined or null items
+        if (!items || items.length === 0) {
             inventoryGrid.innerHTML = `
                 <div class="empty-state" style="grid-column: 1/-1;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -319,7 +346,8 @@ class ScotechApp {
         const salesTableBody = document.getElementById('salesTableBody');
         if (!salesTableBody) return;
 
-        if (sales.length === 0) {
+        // Handle undefined or null sales
+        if (!sales || sales.length === 0) {
             salesTableBody.innerHTML = `
                 <tr>
                     <td colspan="7" style="text-align:center; padding: 3rem;">
@@ -391,7 +419,8 @@ class ScotechApp {
         const productsTableBody = document.getElementById('productsTableBody');
         if (!productsTableBody) return;
 
-        if (products.length === 0) {
+        // Handle undefined or null products
+        if (!products || products.length === 0) {
             productsTableBody.innerHTML = `
                 <tr>
                     <td colspan="7" style="text-align:center; padding: 3rem;">
