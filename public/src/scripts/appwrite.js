@@ -7,6 +7,7 @@ class AppwriteService {
         this.databases = null;
         this.account = null;
         this.initialized = false;
+        this.ID = ID; // Expose ID for creating unique IDs
     }
 
     // Initialize Appwrite
